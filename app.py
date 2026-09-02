@@ -1,8 +1,17 @@
 import time
 import json
+import os
 import streamlit as st
 from streamlit_lottie import st_lottie
-from config import GEMINI_API_KEY
+
+# --- STREAMLIT SECRETS CONFIGURATION FOR CLOUD ---
+try:
+    GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
+    os.environ["GEMINI_API_KEY"] = GEMINI_API_KEY
+except Exception:
+    # Local development fallback agar .env use kar rahe ho
+    pass
+
 from rag.ingestion import build_or_load_vector_store
 from ui.theme import apply_custom_theme
 from ui.sidebar import render_sidebar
@@ -105,6 +114,7 @@ if st.session_state.show_about_dialog:
             <p><b>Project Title:</b> A multilingual, RAG-based AI assistant for Intellectual Property & Regulatory Guidance in Ayurveda across national and international regimes.</p>
             <p><b>Developed For:</b> Smart India Hackathon (SIH) 2026</p>
             <p><b>Team:</b> Team TechTonic</p>
+            <p><b>Developer:</b> Ayush Kawalkar (ID: 0832CS241047)</p>
             <p><b>Architecture:</b> Hybrid RAG (HuggingFace Embeddings + FAISS Local Cache + Gemini Generative AI).</p>
         </div>
     """, unsafe_allow_html=True)
