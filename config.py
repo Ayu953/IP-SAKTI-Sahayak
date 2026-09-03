@@ -17,5 +17,5 @@ KNOWLEDGE_BASE_DIR = "knowledge_base"
 FAISS_INDEX_DIR = "faiss_index"
 EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
 
-# Priority fallback list - Agar ek fail hua toh dusra chalega (0% Error Guarantee)
-GEMINI_MODELS = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-pro"]
+# Agar ek nahi chala toh dusra chalega.
+GEMINI_MODELS = ["gemini-3.6-flash", "gemini-1.5-flash", "gemini-pro"]
