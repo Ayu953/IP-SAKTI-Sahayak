@@ -1,19 +1,29 @@
 from typing import List, Dict
-import google.generativeai as genai
-from config import GEMINI_API_KEY, GEMINI_MODELS
+import os
+from google import genai
+from config import GEMINI_API_KEY
 
-def get_active_gemini_model():
-    """Configures and initializes a supported Gemini generative model instance."""
+def get_genai_client():
+    """Initializes the new official google.genai client."""
     if not GEMINI_API_KEY:
         return None
-    genai.configure(api_key=GEMINI_API_KEY)
+    return genai.Client(api_key=GEMINI_API_KEY)
+
+def get_dynamic_model_name(client) -> str:
+    """Automatically finds the best available active model dynamically from Google's servers."""
+    try:
+        # Naye SDK me models ko list karne ka tareeka
+        for m in client.models.list():
+            if 'generateContent' in getattr(m, 'supported_generation_methods', []) and 'flash' in m.name:
+                return m.name
+        for m in client.models.list():
+            if 'generateContent' in getattr(m, 'supported_generation_methods', []) and 'pro' in m.name:
+                return m.name
+    except Exception:
+        pass
     
-    for model_name in GEMINI_MODELS:
-        try:
-            return genai.GenerativeModel(model_name)
-        except Exception:
-            continue
-    return genai.GenerativeModel("gemini-1.5-flash")
+    # Safe fallback
+    return "gemini-2.5-flash"
 
 def generate_grounded_response(
     query: str, 
@@ -21,10 +31,10 @@ def generate_grounded_response(
     jurisdiction: str, 
     language: str
 ) -> str:
-    """Generates a strictly source-grounded answer using Google Gemini."""
-    model = get_active_gemini_model()
-    if model is None:
-        return "⚠️ Gemini API Key not configured. Please set GEMINI_API_KEY in your `.env` file."
+    """Generates a strictly source-grounded answer using the new Google GenAI SDK."""
+    client = get_genai_client()
+    if client is None:
+        return "⚠️ Gemini API Key not configured. Please check your settings."
 
     if not retrieved_chunks:
         return (
@@ -61,7 +71,12 @@ USER QUESTION:
 """
 
     try:
-        response = model.generate_content(system_prompt)
+        model_name = get_dynamic_model_name(client)
+        # Naye SDK ka official generate call
+        response = client.models.generate_content(
+            model=model_name,
+            contents=system_prompt,
+        )
         return response.text
     except Exception as e:
         return f"⚠️ An error occurred while generating the response: {str(e)}"
