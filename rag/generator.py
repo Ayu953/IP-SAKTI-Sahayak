@@ -1,7 +1,8 @@
 from typing import List, Dict
 import os
 from google import genai
-from config import GEMINI_API_KEY
+# YAHAN DHYAN DE: Humne config se GEMINI_MODELS list import kar li hai
+from config import GEMINI_API_KEY, GEMINI_MODELS 
 
 def get_genai_client():
     """Initializes the new official google.genai client."""
@@ -9,29 +10,13 @@ def get_genai_client():
         return None
     return genai.Client(api_key=GEMINI_API_KEY)
 
-def get_dynamic_model_name(client) -> str:
-    """Automatically finds the best available active model dynamically from Google's servers."""
-    try:
-        # Naye SDK me models ko list karne ka tareeka
-        for m in client.models.list():
-            if 'generateContent' in getattr(m, 'supported_generation_methods', []) and 'flash' in m.name:
-                return m.name
-        for m in client.models.list():
-            if 'generateContent' in getattr(m, 'supported_generation_methods', []) and 'pro' in m.name:
-                return m.name
-    except Exception:
-        pass
-    
-    # Safe fallback
-    return "gemini-3.6-flash"
-
 def generate_grounded_response(
     query: str, 
     retrieved_chunks: List[Dict], 
     jurisdiction: str, 
     language: str
 ) -> str:
-    """Generates a strictly source-grounded answer using the new Google GenAI SDK."""
+    """Generates a strictly source-grounded answer using the Fallback Loop."""
     client = get_genai_client()
     if client is None:
         return "⚠️ Gemini API Key not configured. Please check your settings."
@@ -70,13 +55,26 @@ USER QUESTION:
 {query}
 """
 
-    try:
-        model_name = get_dynamic_model_name(client)
-        # Naye SDK ka official generate call
-        response = client.models.generate_content(
-            model=model_name,
-            contents=system_prompt,
-        )
-        return response.text
-    except Exception as e:
-        return f"⚠️ An error occurred while generating the response: {str(e)}"
+    # ====================================================
+    # 🚀 THE FIX: SMART FALLBACK LOOP (ANTI-503 ERROR)
+    # ====================================================
+    last_error_message = ""
+    
+    # Ek-ek karke config.py wale models ko try karega
+    for model_name in GEMINI_MODELS:
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=system_prompt,
+            )
+            # Agar model successfully chal gaya, toh turant answer return kardo
+            return response.text 
+            
+        except Exception as e:
+            # Agar 503 ya 404 error aaya, toh app crash mat karo. 
+            # Error save karo aur chup-chaap list ka next model try karo.
+            last_error_message = str(e)
+            continue 
+
+    # Agar list ke saare (charo) models fail ho jayein (jo practically impossible hai)
+    return f"⚠️ All Google servers are currently busy. Last error: {last_error_message}"
