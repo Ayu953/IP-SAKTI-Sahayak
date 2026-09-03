@@ -23,7 +23,7 @@ def get_dynamic_model_name(client) -> str:
         pass
     
     # Safe fallback
-    return "gemini-2.5-flash"
+    return "gemini-3.6-flash"
 
 def generate_grounded_response(
     query: str, 
