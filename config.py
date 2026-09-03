@@ -18,4 +18,10 @@ FAISS_INDEX_DIR = "faiss_index"
 EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
 
 # Agar ek nahi chala toh dusra chalega.
-GEMINI_MODELS = ["gemini-3.6-flash", "gemini-1.5-flash", "gemini-pro"]
+# Priority fallback list - Tested & Verified for Sep 2026
+GEMINI_MODELS = [
+    "gemini-3.8-flash",       # Sabse latest, released Sep 2, 2026 (No traffic issues yet)
+    "gemini-3.7-flash",       # Highly stable backup
+    "gemini-3.6-flash",       # Backup 2
+    "gemini-3.5-flash-lite"   # Low-latency subagent (Final fallback)
+]
