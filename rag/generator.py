@@ -15,17 +15,20 @@ def generate_grounded_response(
     retrieved_chunks: List[Dict], 
     jurisdiction: str, 
     language: str
-) -> str:
-    """Generates a strictly source-grounded answer using the Fallback Loop."""
+): 
+    # (Note: Maine -> str hata diya hai kyunki ab yeh stream/generator return karega)
+    """Generates a strictly source-grounded answer using the Fallback Loop and Streaming."""
     client = get_genai_client()
     if client is None:
-        return "⚠️ Gemini API Key not configured. Please check your settings."
+        yield "⚠️ Gemini API Key not configured. Please check your settings."
+        return
 
     if not retrieved_chunks:
-        return (
+        yield (
             "I could not find relevant legal or regulatory information in the available knowledge base "
             "to answer this question accurately."
         )
+        return
 
     # Format retrieved evidence into structured numbered blocks
     context_blocks = []
@@ -56,25 +59,33 @@ USER QUESTION:
 """
 
     # ====================================================
-    # 🚀 THE FIX: SMART FALLBACK LOOP (ANTI-503 ERROR)
+    # 🚀 THE FIX: SMART FALLBACK LOOP + STREAMING
     # ====================================================
     last_error_message = ""
     
     # Ek-ek karke config.py wale models ko try karega
     for model_name in GEMINI_MODELS:
         try:
-            response = client.models.generate_content(
+            # 1. generate_content_stream use kiya (Streaming On)
+            response_stream = client.models.generate_content_stream(
                 model=model_name,
                 contents=system_prompt,
             )
-            # Agar model successfully chal gaya, toh turant answer return kardo
-            return response.text 
+            
+            # 2. Streamlit ko string format me data chahiye hota hai, 
+            # isliye hum explicitly chunk.text yield kar rahe hain
+            for chunk in response_stream:
+                if chunk.text:
+                    yield chunk.text
+            
+            # Agar bina error ke stream complete ho gayi, toh loop yahi khatam kardo
+            return 
             
         except Exception as e:
-            # Agar 503 ya 404 error aaya, toh app crash mat karo. 
-            # Error save karo aur chup-chaap list ka next model try karo.
+            # Agar 503/429 error aaya ya connection latka, toh turant fail hokar next par jayega
             last_error_message = str(e)
+            print(f"Model {model_name} failed. Switching to next... Error: {last_error_message}")
             continue 
 
-    # Agar list ke saare (charo) models fail ho jayein (jo practically impossible hai)
-    return f"⚠️ All Google servers are currently busy. Last error: {last_error_message}"
+    # Agar list ke saare models fail ho jayein
+    yield f"⚠️ All Google servers are currently busy. Last error: {last_error_message}"

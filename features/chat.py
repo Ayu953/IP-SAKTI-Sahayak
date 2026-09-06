@@ -86,16 +86,23 @@ def render_chat_page(vector_store):
             st.write(user_query)
 
         with st.chat_message("assistant", avatar="🌿"):
+            # 1. FAISS Search me thoda spinner dikhega (ye fast hota hai)
             with st.spinner("Retrieving verified legal passages and analyzing context..."):
                 retrieved_chunks, confidence = retrieve_relevant_documents(vector_store, user_query, top_k=4)
-                answer = generate_grounded_response(
-                    query=user_query,
-                    retrieved_chunks=retrieved_chunks,
-                    jurisdiction=st.session_state.jurisdiction,
-                    language=st.session_state.language
-                )
-                st.markdown(answer)
+            
+            # 2. Generator ko call karke stream object uthaya
+            response_stream = generate_grounded_response(
+                query=user_query,
+                retrieved_chunks=retrieved_chunks,
+                jurisdiction=st.session_state.jurisdiction,
+                language=st.session_state.language
+            )
+            
+            # 3. Yahan par live type hoke aayega (MAGIC HAPPPENS HERE)
+            # st.write_stream return me poora text string deta hai jo hum history me save kar sakein
+            answer = st.write_stream(response_stream)
 
+            # Baaki history save karne ka tera logic waisa ka waisa hi rahega
             chat_record = {
                 "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
                 "question": user_query,
@@ -106,4 +113,7 @@ def render_chat_page(vector_store):
             }
             st.session_state.current_chat.append(chat_record)
             st.session_state.all_history.append(chat_record)
-            st.rerun()
+            
+            # NOTE: st.write_stream ke baad generally rerun ki zaroorat nahi padti chat UI update karne ke liye
+            # isliye maine st.rerun() hata diya hai taaki smooth experience rahe. 
+            # Agar purana chat gayab lage, toh agle prompt par usko uncomment kar dena.
